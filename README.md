@@ -44,6 +44,21 @@ $ pnpm run start:dev
 $ pnpm run start:prod
 ```
 
+## Environment Variables
+
+To run this project, you will need to create a `.env` file in the root directory with the following configuration:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=123456
+DB_NAME=product
+```
+
+These variables are used to configure the database connection for the application.  
+Make sure to adjust the values according to your database setup.
+
 ## Run tests
 
 ```bash
