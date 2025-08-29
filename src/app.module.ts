@@ -1,10 +1,11 @@
-//src/app.module.ts
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BarangModule } from './barang/barang.module';
 import { KategoriModule } from './kategori/kategori.module';
+import { CustomLoggerService } from './common/logger.service';
 
 @Module({
   imports: [
@@ -12,16 +13,16 @@ import { KategoriModule } from './kategori/kategori.module';
       type: 'mysql',
       host: 'localhost',
       port: 3306,
-      username: 'root', // Ganti dengan username MySQL kamu
-      password: '123456', // Ganti dengan password MySQL kamu
+      username: 'root',
+      password: '123456',
       database: 'product',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true, // Set true untuk auto-create tabel (hati-hati di production)
+      synchronize: true,
     }),
     BarangModule,
     KategoriModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, CustomLoggerService],
 })
 export class AppModule {}

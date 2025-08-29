@@ -7,66 +7,102 @@ import {
   Body,
   Param,
   Query,
-  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { BarangService } from './barang.service';
 import { Barang } from '../entities/barang.entity';
-import { ApiResponse } from '../common/response.dto';
 
 @Controller('barang')
 export class BarangController {
   constructor(private readonly barangService: BarangService) {}
 
   @Get()
-  async findAll(): Promise<ApiResponse<Barang[]>> {
+  async findAll(@Query('search') search: string): Promise<{
+    success: boolean;
+    message: string;
+    count_data: number;
+    data: Barang[];
+  }> {
     try {
-      const barang = await this.barangService.findAll();
+      const { count_data, data } = await this.barangService.findAll(search);
+      if (!data || data.length === 0) {
+        return {
+          success: false,
+          message: search
+            ? 'Tidak ada barang yang cocok dengan pencarian'
+            : 'Tidak ada data barang ditemukan',
+          count_data: 0,
+          data: [],
+        };
+      }
       return {
         success: true,
-        message: 'Barang retrieved successfully',
-        data: barang,
+        message: search
+          ? 'Hasil pencarian berhasil diambil'
+          : 'Data barang berhasil diambil',
+        count_data,
+        data,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to retrieve barang',
+        message: `Gagal ${search ? 'melakukan pencarian' : 'mengambil data barang'}: ${error.message}`,
+        count_data: 0,
+        data: [],
       };
     }
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ApiResponse<Barang>> {
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string; data: Barang | null }> {
     try {
-      const barang = await this.barangService.findOne(+id);
+      const parsedId = +id;
+      if (isNaN(parsedId)) {
+        throw new BadRequestException('ID barang tidak valid');
+      }
+      const barang = await this.barangService.findOne(parsedId);
       if (!barang) {
-        throw new NotFoundException(`Barang with ID ${id} not found`);
+        return {
+          success: false,
+          message: `Barang dengan ID ${id} tidak ditemukan`,
+          data: null,
+        };
       }
       return {
         success: true,
-        message: 'Barang retrieved successfully',
+        message: 'Detail barang berhasil diambil',
         data: barang,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to retrieve barang',
+        message: 'Gagal mengambil detail barang: ' + error.message,
+        data: null,
       };
     }
   }
 
   @Post()
-  async create(@Body() barang: Barang): Promise<ApiResponse<Barang>> {
+  async create(
+    @Body() barang: Barang,
+  ): Promise<{ success: boolean; message: string; data: Barang | null }> {
     try {
+      if (!barang) {
+        throw new BadRequestException('Data barang tidak boleh kosong');
+      }
       const newBarang = await this.barangService.create(barang);
       return {
         success: true,
-        message: 'Barang created successfully',
+        message: 'Barang berhasil ditambahkan',
         data: newBarang,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to create barang',
+        message: 'Gagal menambahkan barang: ' + error.message,
+        data: null,
       };
     }
   }
@@ -75,51 +111,76 @@ export class BarangController {
   async update(
     @Param('id') id: string,
     @Body() barang: Barang,
-  ): Promise<ApiResponse<Barang>> {
+  ): Promise<{ success: boolean; message: string; data: Barang | null }> {
     try {
-      const updatedBarang = await this.barangService.update(+id, barang);
+      const parsedId = +id;
+      if (isNaN(parsedId)) {
+        throw new BadRequestException('ID barang tidak valid');
+      }
+      if (!barang) {
+        throw new BadRequestException('Data barang tidak boleh kosong');
+      }
+      const updatedBarang = await this.barangService.update(parsedId, barang);
       return {
         success: true,
-        message: 'Barang updated successfully',
+        message: 'Barang berhasil diperbarui',
         data: updatedBarang,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to update barang',
+        message: 'Gagal memperbarui barang: ' + error.message,
+        data: null,
       };
     }
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<ApiResponse<void>> {
+  async remove(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string }> {
     try {
-      await this.barangService.remove(+id);
+      const parsedId = +id;
+      if (isNaN(parsedId)) {
+        throw new BadRequestException('ID barang tidak valid');
+      }
+      await this.barangService.remove(parsedId);
       return {
         success: true,
-        message: 'Barang deleted successfully',
+        message: `Barang dengan ID ${id} berhasil dihapus`,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to delete barang',
+        message: 'Gagal menghapus barang: ' + error.message,
       };
     }
   }
 
   @Delete()
-  async removeBulk(@Query('ids') ids: string): Promise<ApiResponse<void>> {
+  async removeBulk(
+    @Query('ids') ids: string,
+  ): Promise<{ success: boolean; message: string }> {
     try {
-      const idArray = ids.split(',').map((id) => +id);
+      if (!ids) {
+        throw new BadRequestException('Daftar ID barang tidak boleh kosong');
+      }
+      const idArray = ids
+        .split(',')
+        .map((id) => +id)
+        .filter((id) => !isNaN(id));
+      if (idArray.length === 0) {
+        throw new BadRequestException('Daftar ID barang tidak valid');
+      }
       await this.barangService.removeBulk(idArray);
       return {
         success: true,
-        message: 'Barang deleted successfully',
+        message: 'Barang berhasil dihapus secara bulk',
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to delete barang',
+        message: 'Gagal menghapus barang secara bulk: ' + error.message,
       };
     }
   }
